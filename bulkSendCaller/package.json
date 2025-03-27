@@ -1,0 +1,14 @@
+{
+  "name": "bulk-send-caller",
+  "version": "1.0.0",
+  "description": "Script to call bulkSend function for token distribution",
+  "main": "bulkSend.js",
+  "scripts": {
+    "start": "node bulkSend.js"
+  },
+  "dependencies": {
+    "ethers": "^5.7.2",
+    "dotenv": "^16.0.3",
+    "csv-parse": "^5.5.3"
+  }
+} 
