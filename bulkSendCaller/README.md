@@ -2,6 +2,9 @@
 
 This project is a script for sending ERC20 tokens to multiple addresses in a single transaction.
 
+⚠️ **IMPORTANT WARNING** ⚠️
+> Never send large amounts of tokens on mainnet without testing first! Always test with small amounts before proceeding with mainnet transactions. A single mistake could result in significant token loss.
+
 ## Prerequisites
 
 - Node.js v18 or higher
