@@ -27,10 +27,14 @@ async function main() {
         amount: ethers.utils.parseUnits(record.amount, 18) // Assuming 18 decimals, adjust if different
     }));
 
-    // Split into chunks of 50
+
+    // Configuration
+    const CHUNK_SIZE = 50;
+
+    // Split into chunks based on CHUNK_SIZE
     const chunks = [];
-    for (let i = 0; i < recipients.length; i += 50) {
-        chunks.push(recipients.slice(i, i + 50));
+    for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
+        chunks.push(recipients.slice(i, i + CHUNK_SIZE));
     }
 
     // Process each chunk
@@ -42,31 +46,32 @@ async function main() {
         try {
             // Get current gas price and set minimum values
             const feeData = await provider.getFeeData();
-            
-            // Ensure minimum gas tip of 10 gwei
-            const minPriorityFeePerGas = ethers.utils.parseUnits("10", "gwei");
-            const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas.gt(minPriorityFeePerGas) 
-                ? feeData.maxPriorityFeePerGas.mul(150).div(100)  // 150% of current if it's higher than minimum
-                : minPriorityFeePerGas;  // else use minimum 10 gwei
 
-            // Set max fee to be at least 2x the priority fee
-            const baseMaxFee = feeData.maxFeePerGas.mul(150).div(100);  // 150% of current maxFeePerGas
-            const maxFeePerGas = baseMaxFee.gt(maxPriorityFeePerGas.mul(2)) 
-                ? baseMaxFee 
-                : maxPriorityFeePerGas.mul(2);
+            // Calculate optimal gas price based on network conditions
+            const currentGasPrice = await provider.getGasPrice();
+            const baseFee = feeData.lastBaseFeePerGas || currentGasPrice;
 
-            // Estimate gas limit
+            // Set priority fee (tip) to be 10% higher than current network tip
+            const currentTip = feeData.maxPriorityFeePerGas || ethers.utils.parseUnits("1", "gwei");
+            const maxPriorityFeePerGas = currentTip.mul(110).div(100); // 10% higher than current tip
+
+            // Set max fee to be 20% higher than current base fee plus priority fee
+            const maxFeePerGas = baseFee.mul(120).div(100).add(maxPriorityFeePerGas);
+
+            // Estimate gas limit with a smaller buffer
             const gasLimit = await bulkSender.estimateGas.bulkSend(
                 process.env.TOKEN_ADDRESS,
                 chunk
             );
 
-            // Add 50% buffer to estimated gas limit
-            const gasLimitWithBuffer = gasLimit.mul(150).div(100);
+            // Add 20% buffer to estimated gas limit (reduced from 50%)
+            const gasLimitWithBuffer = gasLimit.mul(120).div(100);
 
             console.log(`Estimated gas limit: ${gasLimit.toString()}`);
+            console.log(`Base fee: ${ethers.utils.formatUnits(baseFee, 'gwei')} gwei`);
             console.log(`Max fee per gas: ${ethers.utils.formatUnits(maxFeePerGas, 'gwei')} gwei`);
             console.log(`Max priority fee per gas: ${ethers.utils.formatUnits(maxPriorityFeePerGas, 'gwei')} gwei`);
+            console.log(`Total estimated gas cost: ${ethers.utils.formatEther(maxFeePerGas.mul(gasLimitWithBuffer))} ETH`);
 
             const tx = await bulkSender.bulkSend(
                 process.env.TOKEN_ADDRESS,
